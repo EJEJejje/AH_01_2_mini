@@ -44,3 +44,37 @@
 
    ```bash
    ssh-keygen -t ed25519 -C "본인_GitHub_이메일@example.com"
+
+   공개키 복사
+
+macOS:
+
+pbcopy < ~/.ssh/id_ed25519.pub
+
+
+Windows (Git Bash):
+
+cat ~/.ssh/id_ed25519.pub
+
+
+출력된 문자열을 전체 복사합니다.
+
+GitHub에 SSH 키 등록
+
+GitHub 웹 → 오른쪽 위 프로필 → Settings
+
+왼쪽 메뉴에서 SSH and GPG keys → New SSH key
+
+Title: 예) MyLaptop
+
+Key: 방금 복사한 키를 붙여넣기 → Add SSH key
+
+연결 테스트
+
+ssh -T git@github.com
+
+
+successfully authenticated 와 같은 문구가 나오면 성공입니다.
+
+
+
