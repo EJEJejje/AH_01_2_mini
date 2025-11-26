@@ -1,7 +1,3 @@
-
-
-📌 1. 프로젝트 개요
-
 본 프로젝트는 **건강검진 데이터(7000명)**를 활용해
 이상 여부(0/1)를 분류하는 이진 분류 모델을 개발하는 작업이다.
 
@@ -33,6 +29,7 @@
 	•	시력, 충치, 요 단백
 
 ✔ Feature 중요도 (RandomForest 기준 Top 변수)
+
 순위
 변수명
 1
@@ -45,11 +42,7 @@
 간 효소율
 5
 LDL(저밀도지단백)
-
-
 ➡ 혈액·간·신장 관련 지표가 가장 큰 영향을 미침
-
-⸻
 
 🤖 3. 모델링 전략
 
@@ -67,7 +60,6 @@ LDL(저밀도지단백)
 🧪 4. 단일 모델 성능 정리
 
 ✔ RandomForest
-
 항목
 값
 n_estimators
@@ -78,16 +70,13 @@ min_samples_split
 4
 min_samples_leaf
 1
-
 	•	Train ACC: ~0.99
 	•	Valid ACC: 0.7471
 
 📌 과적합이 매우 강하게 발생
 (하지만 Valid 성능은 모든 모델 중 가장 높았음)
-
-⸻
-
 ✔ XGBoost
+
 항목
 값
 n_estimators
@@ -98,15 +87,11 @@ learning_rate
 0.07
 subsample
 0.9
-
-
-	•	Train ACC: ~0.88
+	Train ACC: ~0.88
 	•	Valid ACC: 0.7350
 
 📌 단일 성능은 RF보다 낮지만
 📌 앙상블에서 큰 개선 효과가 있었음.
-
-⸻
 
 ⚡ 5. Soft Voting 앙상블 실험
 
@@ -128,7 +113,6 @@ Threshold
 0.47
 ⭐ Best Valid Accuracy
 0.7586
-
 🔍 6. 과적합 분석 및 개선 작업
 
 ✔ 과적합 확인
@@ -180,7 +164,7 @@ Threshold
 
 ⸻
 
-🧾 8. 요약 결론 (팀원 공유용 핵심 포인트)
+🧾 8. 요약 결론 
 	•	RF가 가장 강력한 단일 모델
 	•	XGB는 보조 역할로 앙상블 시 시너지
 	•	Soft Voting + Threshold 튜닝이 점수를 가장 많이 올림
@@ -189,10 +173,3 @@ Threshold
 	•	전반적인 실험 중 가장 안정적 성능
 
 ⸻
-
-📎 9. 향후 개선 아이디어
-	•	Logistic Regression / NN 등 비트리 모델 대비 효과 없음 → 제외
-	•	Feature engineering 여지 적음 (전부 수치형 + 일관된 의료 피처)
-	•	K-Fold 교차검증 기반의 최종 모델링 시 Test 안정성 증가 가능
-	•	모델 앙상블을 stacking까지 확장 가능
-	•	Hyperopt/BayesOpt 튜닝은 탐색 비용 대비 효율 낮다고 판단
