@@ -1,105 +1,198 @@
-# 🩺 건강 상태 예측 이진 분류 —  보고서
-
-본 문서는  모델링 전 과정을 **한눈에 보기 쉽게** 정리한 최종 보고서입니다.  
-EDA → 단일 모델 → 앙상블 → Threshold 튜닝 → 최종 제출까지  
-모든 단계의 핵심 결과를 하나로 모았습니다.
-
----
-
-# 📌 1. 데이터 요약
-
-| 파일 | 행 | 열 |
-|------|----|-----|
-| train.csv | 7000 | 18 |
-| test.csv | 3000 | 17 |
-
-사용된 특징(Feature) 목록:
-[‘나이’, ‘키(cm)’, ‘몸무게(kg)’, ‘BMI’, ‘시력’, ‘충치’,
-‘공복 혈당’, ‘혈압’, ‘중성 지방’, ‘혈청 크레아티닌’,
-‘콜레스테롤’, ‘고밀도지단백’, ‘저밀도지단백’,
-‘헤모글로빈’, ‘요 단백’, ‘간 효소율’]
-
-Target: `label` (0/1)
-
-클래스 분포:
-- 0 → 4429명 (63%)
-- 1 → 2571명 (37%)
-
----
-
-# 📌 2. 핵심 EDA 요약
-
-- 결측치 없음
-- 이상치(IQR) 기준 제거 시 데이터 손실 너무 큼 → **전체 데이터 사용**
-- 대부분 연속형 변수 → 모델 가중치 학습에 유리
-- label이 약한 불균형이 있으나 심각한 수준은 아님
-
----
-
-# 📌 3. 단일 모델 성능 비교
-
-| 모델 | Train Acc | Valid Acc | Gap | 비고 |
-|------|-----------|-----------|------|------|
-| RandomForest | 0.9982 | 0.7486 | 0.2496 | 강한 과적합 |
-| XGBoost | 0.9996 | 0.7350 | 0.2646 | 강한 과적합 |
-| GradientBoosting | 0.7728 | 0.7236 | 0.0492 | 안정적 |
-
-**결론:**  
-단일 모델 중에서는 RF가 가장 높지만 과적합 존재 →  
-→ 앙상블로 안정 + 성능 두 마리 토끼 잡는 전략 선택
-
----
-
-# 📌 4. 앙상블 전략 (Soft Voting)
-
-조합 모델:
-
-### ✔ RandomForest (비중 0.6)
-n_estimators=800
-max_depth=7
-min_samples_leaf=2
-min_samples_split=4
-class_weight=“balanced_subsample”
-
-### ✔ XGBoost (비중 0.4)
-n_estimators=800
-max_depth=7
-learning_rate=0.08
-subsample=0.8
-colsample_bytree=0.8
-
----
-
-# 📌 5. Threshold 튜닝 (0.30 ~ 0.70)
-
-- 기본 0.50 기준: 0.748
-- 임계값 조정 후:
-Best threshold: 0.57
-Best Valid Accuracy: 0.7557  ← 이 프로젝트 최고점 🔥
 
 
----
+📌 1. 프로젝트 개요
 
-# 📌 6. 최종 모델 구성 (전체 Train으로 재학습)
+본 프로젝트는 **건강검진 데이터(7000명)**를 활용해
+이상 여부(0/1)를 분류하는 이진 분류 모델을 개발하는 작업이다.
 
-앙상블 확률: ensemble = (0.6 * RF_proba) + (0.4 * XGB_proba)
-final_label = 1 if ensemble >= 0.57 else 0
+목표는 다음과 같다:
+	•	Validation Accuracy 최대화
+	•	일반화 성능 확보
+	•	과적합 최소화
+	•	Test 데이터에 대한 안정적 예측 수행
 
----
-
-# 📌 7. Test 예측 및 제출 파일 생성 코드
-
-```python
-submission = pd.read_csv("sample_submission.csv")
-submission["label"] = test_pred
-submission.to_csv("submission_best.csv", index=False)
-```
-⸻
-
-# 📌 8. 최종 결론
-	•	단일 모델 대비 앙상블이 항상 높은 성능
-	•	threshold 튜닝으로 accuracy를 추가 상승
-	•	최종 점수 0.7557, 지금까지 실험 결과 중 최고 기록
+평가지표는 Accuracy다.
 
 ⸻
 
+📊 2. 데이터 분석 (EDA 요약)
+
+✔ 데이터 구조
+	•	Train: 7,000개
+	•	Test: 3,000개
+	•	Feature: 총 16개 모두 수치형
+	•	결측치 없음
+	•	ID, label 제외하고 학습
+
+✔ 주요 Feature
+	•	나이, 키, 몸무게, BMI
+	•	혈압, 공복 혈당
+	•	콜레스테롤 계열 (총콜, HDL, LDL, 중성 지방)
+	•	간 효소율, 혈청 크레아티닌
+	•	헤모글로빈
+	•	시력, 충치, 요 단백
+
+✔ Feature 중요도 (RandomForest 기준 Top 변수)
+순위
+변수명
+1
+헤모글로빈
+2
+키(cm)
+3
+중성 지방
+4
+간 효소율
+5
+LDL(저밀도지단백)
+
+
+➡ 혈액·간·신장 관련 지표가 가장 큰 영향을 미침
+
+⸻
+
+🤖 3. 모델링 전략
+
+모델링은 아래 순서로 진행되었다.
+	1.	Baseline 모델 학습 (RF, XGB)
+	2.	RandomForest 하이퍼파라미터 세부 튜닝
+	3.	XGBoost 하이퍼파라미터 실험
+	4.	Soft Voting 앙상블
+	5.	Threshold 튜닝 (0.40~0.60 grid search)
+	6.	OOF 기반 과적합 점검
+	7.	최종 모델 선정
+
+⸻
+
+🧪 4. 단일 모델 성능 정리
+
+✔ RandomForest
+
+항목
+값
+n_estimators
+1100
+max_depth
+None
+min_samples_split
+4
+min_samples_leaf
+1
+
+	•	Train ACC: ~0.99
+	•	Valid ACC: 0.7471
+
+📌 과적합이 매우 강하게 발생
+(하지만 Valid 성능은 모든 모델 중 가장 높았음)
+
+⸻
+
+✔ XGBoost
+항목
+값
+n_estimators
+700
+max_depth
+6
+learning_rate
+0.07
+subsample
+0.9
+
+
+	•	Train ACC: ~0.88
+	•	Valid ACC: 0.7350
+
+📌 단일 성능은 RF보다 낮지만
+📌 앙상블에서 큰 개선 효과가 있었음.
+
+⸻
+
+⚡ 5. Soft Voting 앙상블 실험
+
+✔ 탐색 범위
+	•	Weight: RF 0.60~0.90, XGB 나머지
+	•	Threshold: 0.40~0.60
+
+✔ 결과
+
+다수 실험 중 가장 높은 Valid Accuracy는 다음 조합에서 나왔다:
+
+항목
+값
+RF Weight
+0.75
+XGB Weight
+0.25
+Threshold
+0.47
+⭐ Best Valid Accuracy
+0.7586
+
+🔍 6. 과적합 분석 및 개선 작업
+
+✔ 과적합 확인
+	•	RF Train ACC: 0.99
+	•	RF Valid ACC: 0.74
+	•	XGB Train ACC: 0.88
+	•	XGB Valid ACC: 0.73
+
+➡ 매우 강한 과적합 패턴.
+
+✔ 과적합 완화 시도
+	1.	RF
+	•	max_depth=10 제한
+	•	leaf 최소 샘플 증가
+→ 일반화는 증가했으나 Valid 점수 감소
+	2.	XGB
+	•	depth 감소
+	•	subsample 0.85
+	•	reg_lambda 강화
+→ 과적합 감소했으나 점수는 하락
+	3.	CatBoost 추가 실험
+→ 최고 성능 갱신 실패
+	4.	OOF 기반 Ensemble
+→ 일반화는 더 좋아졌지만 최고 Valid 기준에서는 0.74 수준
+
+📌 결론
+
+해당 데이터는 과적합을 일정 부분 허용할 때 점수가 높아지는 구조
+규제를 강하게 넣을수록 점수가 떨어지는 특성이 있음
+
+⸻
+
+🏆 7. 최종 선택된 모델
+
+✔ 최종 모델: RF + XGB Soft Voting
+	•	RF 비중: 0.75
+	•	XGB 비중: 0.25
+	•	최적 Threshold: 0.47
+
+✔ 최종 Validation Accuracy
+
+0.7586
+
+✔ Test 데이터 예측 방식
+	1.	전체 7000개로 최종 모델 재학습
+	2.	확률값을 w_rf=0.75 + w_xgb=0.25 로 결합
+	3.	0.47 기준으로 이진 분류
+	4.	제출 파일 생성
+
+⸻
+
+🧾 8. 요약 결론 (팀원 공유용 핵심 포인트)
+	•	RF가 가장 강력한 단일 모델
+	•	XGB는 보조 역할로 앙상블 시 시너지
+	•	Soft Voting + Threshold 튜닝이 점수를 가장 많이 올림
+	•	과적합을 완전히 제거하면 오히려 성능 하락
+	•	최종 Valid 최고 점수: 0.7586
+	•	전반적인 실험 중 가장 안정적 성능
+
+⸻
+
+📎 9. 향후 개선 아이디어
+	•	Logistic Regression / NN 등 비트리 모델 대비 효과 없음 → 제외
+	•	Feature engineering 여지 적음 (전부 수치형 + 일관된 의료 피처)
+	•	K-Fold 교차검증 기반의 최종 모델링 시 Test 안정성 증가 가능
+	•	모델 앙상블을 stacking까지 확장 가능
+	•	Hyperopt/BayesOpt 튜닝은 탐색 비용 대비 효율 낮다고 판단
